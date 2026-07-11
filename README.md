@@ -19,7 +19,7 @@ There are no automatic debits. Scope is approved before an invoice is presented.
 
 ## Security model
 
-The probe invokes only `getinfo` and `listpeerchannels` through a fixed `lightning-cli` argument array. It never requests payment, invoice, wallet, datastore, signing, channel-management, or secret-bearing RPCs.
+The probe invokes only `getinfo`, `listpeerchannels`, and `listpeers` through a fixed `lightning-cli` argument array. `listpeers` is used only to derive explicit channel connectivity. It never requests payment, invoice, wallet, datastore, signing, channel-management, or secret-bearing RPCs.
 
 The public report is rebuilt from an explicit nine-field allowlist:
 

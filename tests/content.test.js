@@ -74,8 +74,16 @@ test('mobile CSS prevents horizontal clipping and collapses dense grids', () => 
 test('external watchdog checks health and independently validates fresh status', () => {
   const workflow = read('.github/workflows/public-watchdog.yml');
   assert.match(workflow, /schedule:/);
+  assert.match(workflow, /permissions:\s*\{\}/);
   assert.match(workflow, /radclaw\.tail210fab\.ts\.net:10000\/health/);
   assert.match(workflow, /radclaw\.tail210fab\.ts\.net:10000\/api\/v1\/status/);
+  assert.match(workflow, /schema_version.*!= 1/);
+  assert.match(workflow, /schema_version.*isinstance/);
+  assert.match(workflow, /service.*Radclaw Node Guardian/);
+  assert.match(workflow, /network.*bitcoin/);
+  assert.match(workflow, /block_height.*isinstance/);
+  assert.match(workflow, /normal_channels.*isinstance/);
+  assert.match(workflow, /isinstance.*receive_ready/);
   assert.match(workflow, /generated_at/);
   assert.match(workflow, /status.*ok/);
 });

@@ -16,16 +16,17 @@ DEFAULT_RPC_FILE = "/Users/radclaw/Library/Application Support/RadclawNode/light
 
 
 def _msat(value: Any) -> int:
-    if isinstance(value, int):
+    if isinstance(value, int) and not isinstance(value, bool):
         return value
-    if isinstance(value, dict) and isinstance(value.get("msat"), int):
+    if isinstance(value, dict) and isinstance(value.get("msat"), int) and not isinstance(value.get("msat"), bool):
         return value["msat"]
     return 0
 
 
 def _safe_version(value: Any) -> str:
-    text = str(value or "unknown")[:64]
-    return text if re.fullmatch(r"[A-Za-z0-9._+\-]+", text) else "unknown"
+    if not isinstance(value, str) or not value or len(value) > 64:
+        return "unknown"
+    return value if re.fullmatch(r"[A-Za-z0-9._+\-]+", value) else "unknown"
 
 
 def build_reports(
@@ -47,7 +48,7 @@ def build_reports(
         findings.append("no_normal_channels")
 
     receive_ready = any(
-        channel.get("connected") is not False and _msat(channel.get("receivable_msat")) > 0
+        channel.get("connected") is True and _msat(channel.get("receivable_msat")) > 0
         for channel in normal
     )
     if normal and not receive_ready:
@@ -55,8 +56,15 @@ def build_reports(
 
     network_value = getinfo.get("network")
     network = network_value if network_value in ALLOWED_NETWORKS else "unknown"
+    if network == "unknown":
+        findings.append("invalid_network")
+    version = _safe_version(getinfo.get("version"))
+    if version == "unknown":
+        findings.append("invalid_version")
     block_height_value = getinfo.get("blockheight")
-    block_height = block_height_value if isinstance(block_height_value, int) and block_height_value >= 0 else None
+    block_height = block_height_value if isinstance(block_height_value, int) and not isinstance(block_height_value, bool) and block_height_value >= 0 else None
+    if block_height is None:
+        findings.append("invalid_block_height")
 
     public = {
         "schema_version": SCHEMA_VERSION,
@@ -64,7 +72,7 @@ def build_reports(
         "generated_at": generated_at,
         "status": "ok" if not findings else "degraded",
         "network": network,
-        "version": _safe_version(getinfo.get("version")),
+        "version": version,
         "block_height": block_height,
         "normal_channels": len(normal),
         "receive_ready": receive_ready,
@@ -122,7 +130,32 @@ def _rpc(cli: str, lightning_dir: str, rpc_file: str, command: str) -> Dict[str,
 
 
 def collect_live(cli: str, lightning_dir: str, rpc_file: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    return _rpc(cli, lightning_dir, rpc_file, "getinfo"), _rpc(cli, lightning_dir, rpc_file, "listpeerchannels")
+    getinfo = _rpc(cli, lightning_dir, rpc_file, "getinfo")
+    peerchannels = _rpc(cli, lightning_dir, rpc_file, "listpeerchannels")
+    peers = _rpc(cli, lightning_dir, rpc_file, "listpeers")
+
+    channels = peerchannels.get("channels")
+    peer_list = peers.get("peers")
+    if not isinstance(channels, list) or not isinstance(peer_list, list):
+        raise ValueError("invalid channel or peer list")
+    if any(not isinstance(channel, dict) for channel in channels):
+        raise ValueError("invalid channel entry")
+    if any(
+        not isinstance(peer, dict)
+        or not isinstance(peer.get("id"), str)
+        or not isinstance(peer.get("connected"), bool)
+        for peer in peer_list
+    ):
+        raise ValueError("invalid peer entry")
+
+    connected_peer_ids = {peer["id"] for peer in peer_list if peer["connected"] is True}
+    enriched_channels = []
+    for channel in channels:
+        enriched = dict(channel)
+        peer_id = enriched.get("peer_id")
+        enriched["connected"] = isinstance(peer_id, str) and peer_id in connected_peer_ids
+        enriched_channels.append(enriched)
+    return getinfo, {**peerchannels, "channels": enriched_channels}
 
 
 def collect_and_write(

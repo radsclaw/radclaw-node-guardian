@@ -5,8 +5,7 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: public-watchdog
@@ -22,6 +21,7 @@ jobs:
         run: |
           import datetime as dt
           import json
+          import re
           import urllib.request
 
           health_url = "https://radclaw.tail210fab.ts.net:10000/health"
@@ -35,7 +35,10 @@ jobs:
               with urllib.request.urlopen(request, timeout=20) as response:
                   if response.status != 200:
                       raise RuntimeError(f"{url} returned HTTP {response.status}")
-                  return json.load(response)
+                  body = response.read(16 * 1024 + 1)
+                  if len(body) > 16 * 1024:
+                      raise RuntimeError(f"{url} response is too large")
+                  return json.loads(body)
 
           health = fetch(health_url)
           if health != {"status": "ok"}:
@@ -48,10 +51,27 @@ jobs:
           }
           if set(status) != required:
               raise RuntimeError("public status schema mismatch")
+          if status["schema_version"] != 1 or not isinstance(status["schema_version"], int) or isinstance(status["schema_version"], bool):
+              raise RuntimeError("unexpected schema version")
+          if status["service"] != "Radclaw Node Guardian":
+              raise RuntimeError("unexpected service identity")
           if status["status"] != "ok":
               raise RuntimeError(f"node status is {status['status']!r}")
+          if status["network"] != "bitcoin":
+              raise RuntimeError(f"unexpected network: {status['network']!r}")
+          if not isinstance(status["version"], str) or not re.fullmatch(r"[A-Za-z0-9._+\-]{1,64}", status["version"]):
+              raise RuntimeError("invalid version")
+          if not isinstance(status["block_height"], int) or isinstance(status["block_height"], bool) or status["block_height"] < 0:
+              raise RuntimeError("invalid block height")
+          if not isinstance(status["normal_channels"], int) or isinstance(status["normal_channels"], bool) or status["normal_channels"] < 1:
+              raise RuntimeError("no normal channels")
+          if not isinstance(status["receive_ready"], bool) or status["receive_ready"] is not True:
+              raise RuntimeError("node is not receive ready")
 
-          generated = dt.datetime.fromisoformat(status["generated_at"].replace("Z", "+00:00"))
+          timestamp = status["generated_at"]
+          if not isinstance(timestamp, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z", timestamp):
+              raise RuntimeError("invalid generated_at timestamp")
+          generated = dt.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
           age = (dt.datetime.now(dt.timezone.utc) - generated).total_seconds()
           if age < -60 or age > 600:
               raise RuntimeError(f"status age is outside allowed range: {age:.0f}s")

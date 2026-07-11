@@ -3,11 +3,12 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
 
-from node_guardian.probe import build_reports, collect_and_write, write_public_status
+from node_guardian.probe import build_reports, collect_and_write, collect_live, write_public_status
 
 
 class ProbeReportTests(unittest.TestCase):
@@ -83,6 +84,56 @@ class ProbeReportTests(unittest.TestCase):
         public, private = build_reports(getinfo, channels, generated_at="2026-07-11T12:00:00Z")
         self.assertEqual(public["status"], "degraded")
         self.assertIn("bitcoin_backend_syncing", private["findings"])
+
+    def test_collect_live_enriches_channel_connectivity_from_listpeers(self):
+        getinfo = {"network": "bitcoin"}
+        channels = {"channels": [{"peer_id": "peer-a", "state": "CHANNELD_NORMAL"}, {"peer_id": "peer-b", "state": "CHANNELD_NORMAL"}]}
+        peers = {"peers": [{"id": "peer-a", "connected": True}, {"id": "peer-b", "connected": False}]}
+        with mock.patch("node_guardian.probe._rpc", side_effect=[getinfo, channels, peers]) as rpc:
+            actual_info, actual_channels = collect_live("cli", "dir", "rpc")
+        self.assertEqual(actual_info, getinfo)
+        self.assertIs(actual_channels["channels"][0]["connected"], True)
+        self.assertIs(actual_channels["channels"][1]["connected"], False)
+        self.assertEqual([call.args[-1] for call in rpc.call_args_list], ["getinfo", "listpeerchannels", "listpeers"])
+
+    def test_incomplete_getinfo_cannot_publish_healthy(self):
+        _, channels = self.healthy_fixture()
+        public, private = build_reports({}, channels, generated_at="2026-07-11T12:00:00Z")
+        self.assertEqual(public["status"], "degraded")
+        self.assertEqual(public["network"], "unknown")
+        self.assertEqual(public["version"], "unknown")
+        self.assertIsNone(public["block_height"])
+        self.assertTrue({"invalid_network", "invalid_version", "invalid_block_height"}.issubset(private["findings"]))
+
+    def test_non_string_version_cannot_publish_healthy(self):
+        getinfo, channels = self.healthy_fixture()
+        for malformed in (True, 123, "v" * 65):
+            getinfo["version"] = malformed
+            public, private = build_reports(getinfo, channels, generated_at="2026-07-11T12:00:00Z")
+            self.assertEqual(public["status"], "degraded")
+            self.assertEqual(public["version"], "unknown")
+            self.assertIn("invalid_version", private["findings"])
+
+    def test_boolean_msat_cannot_claim_receive_capacity(self):
+        getinfo, channels = self.healthy_fixture()
+        channels["channels"][0]["receivable_msat"] = True
+        public, private = build_reports(getinfo, channels, generated_at="2026-07-11T12:00:00Z")
+        self.assertEqual(public["status"], "degraded")
+        self.assertFalse(public["receive_ready"])
+        self.assertIn("no_direct_receive_capacity", private["findings"])
+
+    def test_missing_or_null_connectivity_is_not_receive_ready(self):
+        getinfo, channels = self.healthy_fixture()
+        for connected in (None, "missing"):
+            channel = channels["channels"][0]
+            if connected == "missing":
+                channel.pop("connected", None)
+            else:
+                channel["connected"] = connected
+            public, private = build_reports(getinfo, channels, generated_at="2026-07-11T12:00:00Z")
+            self.assertEqual(public["status"], "degraded")
+            self.assertFalse(public["receive_ready"])
+            self.assertIn("no_direct_receive_capacity", private["findings"])
 
     def test_write_public_status_is_atomic_and_private(self):
         with tempfile.TemporaryDirectory() as tmp:
