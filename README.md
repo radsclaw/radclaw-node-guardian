@@ -1,6 +1,12 @@
 # Radclaw Node Guardian
 
+[![test](https://github.com/radsclaw/radclaw-node-guardian/actions/workflows/test.yml/badge.svg)](https://github.com/radsclaw/radclaw-node-guardian/actions/workflows/test.yml)
+
 Read-only Core Lightning monitoring and evidence-backed operational audits, paid in bitcoin over Lightning.
+
+- **Service:** https://radsclaw.github.io/radclaw-node-guardian/
+- **Live reference API:** https://radclaw.tail210fab.ts.net:10000/api/v1/status
+- **Audit intake:** https://github.com/radsclaw/radclaw-node-guardian/issues/new?template=audit-request.yml
 
 ## Service
 
