@@ -6,7 +6,7 @@ import os
 import pathlib
 import re
 import subprocess
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 SCHEMA_VERSION = 1
 ALLOWED_NETWORKS = {"bitcoin", "testnet", "regtest", "signet"}
@@ -125,6 +125,49 @@ def collect_live(cli: str, lightning_dir: str, rpc_file: str) -> Tuple[Dict[str,
     return _rpc(cli, lightning_dir, rpc_file, "getinfo"), _rpc(cli, lightning_dir, rpc_file, "listpeerchannels")
 
 
+def collect_and_write(
+    output: pathlib.Path,
+    private_output: Optional[pathlib.Path],
+    cli: str,
+    lightning_dir: str,
+    rpc_file: str,
+    generated_at: str,
+    collector=collect_live,
+) -> Tuple[Dict[str, Any], bool]:
+    """Collect live state and always replace the public report atomically.
+
+    Collector errors are deliberately not copied into either report because
+    command output and paths can contain private operational details.
+    """
+    try:
+        getinfo, channels = collector(cli, lightning_dir, rpc_file)
+        public, private = build_reports(getinfo, channels, generated_at)
+        succeeded = True
+    except Exception:
+        public = {
+            "schema_version": SCHEMA_VERSION,
+            "service": "Radclaw Node Guardian",
+            "generated_at": generated_at,
+            "status": "degraded",
+            "network": "unknown",
+            "version": "unknown",
+            "block_height": None,
+            "normal_channels": 0,
+            "receive_ready": False,
+        }
+        private = {
+            "generated_at": generated_at,
+            "status": "degraded",
+            "findings": ["collector_unavailable"],
+        }
+        succeeded = False
+
+    write_public_status(pathlib.Path(output), public)
+    if private_output:
+        write_public_status(pathlib.Path(private_output), private)
+    return public, succeeded
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a redacted public Core Lightning status report")
     parser.add_argument("--output", required=True)
@@ -135,13 +178,16 @@ def main() -> int:
     args = parser.parse_args()
 
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    getinfo, channels = collect_live(args.lightning_cli, args.lightning_dir, args.rpc_file)
-    public, private = build_reports(getinfo, channels, generated_at)
-    write_public_status(pathlib.Path(args.output), public)
-    if args.private_output:
-        write_public_status(pathlib.Path(args.private_output), private)
+    public, succeeded = collect_and_write(
+        output=pathlib.Path(args.output),
+        private_output=pathlib.Path(args.private_output) if args.private_output else None,
+        cli=args.lightning_cli,
+        lightning_dir=args.lightning_dir,
+        rpc_file=args.rpc_file,
+        generated_at=generated_at,
+    )
     print(json.dumps(public, sort_keys=True))
-    return 0
+    return 0 if succeeded else 1
 
 
 if __name__ == "__main__":

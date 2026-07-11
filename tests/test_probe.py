@@ -7,7 +7,7 @@ import unittest
 ROOT = pathlib.Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
 
-from node_guardian.probe import build_reports, write_public_status
+from node_guardian.probe import build_reports, collect_and_write, write_public_status
 
 
 class ProbeReportTests(unittest.TestCase):
@@ -91,6 +91,33 @@ class ProbeReportTests(unittest.TestCase):
             self.assertEqual(json.loads(target.read_text()), {"status": "ok"})
             self.assertEqual(target.stat().st_mode & 0o777, 0o600)
             self.assertFalse(list(target.parent.glob("*.tmp")))
+
+    def test_collector_failure_replaces_stale_ok_with_degraded_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = pathlib.Path(tmp) / "runtime" / "status.json"
+            write_public_status(target, {"status": "ok", "generated_at": "2000-01-01T00:00:00Z"})
+
+            def failing_collector(cli, lightning_dir, rpc_file):
+                raise RuntimeError("private RPC path and secret details")
+
+            public, succeeded = collect_and_write(
+                output=target,
+                private_output=None,
+                cli="unused",
+                lightning_dir="unused",
+                rpc_file="unused",
+                generated_at="2026-07-11T20:00:00Z",
+                collector=failing_collector,
+            )
+            self.assertFalse(succeeded)
+            self.assertEqual(public["status"], "degraded")
+            self.assertEqual(set(public), {
+                "schema_version", "service", "generated_at", "status", "network",
+                "version", "block_height", "normal_channels", "receive_ready",
+            })
+            encoded = target.read_text()
+            self.assertNotIn("private RPC", encoded)
+            self.assertEqual(json.loads(encoded), public)
 
 
 if __name__ == "__main__":

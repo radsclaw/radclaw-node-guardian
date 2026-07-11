@@ -70,3 +70,12 @@ test('mobile CSS prevents horizontal clipping and collapses dense grids', () => 
   assert.match(mobile, /\.never-list\{grid-template-columns:1fr\}/);
   assert.match(mobile, /\.hero h1\{[^}]*overflow-wrap:anywhere/);
 });
+
+test('external watchdog checks health and independently validates fresh status', () => {
+  const workflow = read('.github/workflows/public-watchdog.yml');
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /radclaw\.tail210fab\.ts\.net:10000\/health/);
+  assert.match(workflow, /radclaw\.tail210fab\.ts\.net:10000\/api\/v1\/status/);
+  assert.match(workflow, /generated_at/);
+  assert.match(workflow, /status.*ok/);
+});

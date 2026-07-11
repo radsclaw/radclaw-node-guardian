@@ -12,6 +12,8 @@ const PUBLIC_STATUS_KEYS = [
 ];
 const ALLOWED_ORIGIN = 'https://radsclaw.github.io';
 const MAX_STATUS_BYTES = 16 * 1024;
+const DEFAULT_MAX_STATUS_AGE_MS = 10 * 60 * 1000;
+const MAX_FUTURE_SKEW_MS = 60 * 1000;
 
 function securityHeaders(contentType, cacheControl = 'no-store') {
   return {
@@ -46,6 +48,33 @@ function readPublicStatus(statusPath) {
   if (!stat.isFile() || stat.size > MAX_STATUS_BYTES) throw new Error('invalid status file');
   const parsed = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid status object');
+  if (!PUBLIC_STATUS_KEYS.every(key => Object.prototype.hasOwnProperty.call(parsed, key))) {
+    throw new Error('missing status field');
+  }
+  if (parsed.schema_version !== 1 || parsed.service !== 'Radclaw Node Guardian') {
+    throw new Error('invalid status identity');
+  }
+  if (!['ok', 'degraded'].includes(parsed.status)
+      || !['bitcoin', 'testnet', 'regtest', 'signet', 'unknown'].includes(parsed.network)
+      || typeof parsed.version !== 'string'
+      || !(parsed.block_height === null || (Number.isInteger(parsed.block_height) && parsed.block_height >= 0))
+      || !Number.isInteger(parsed.normal_channels) || parsed.normal_channels < 0
+      || typeof parsed.receive_ready !== 'boolean') {
+    throw new Error('invalid status value');
+  }
+  const timestampMatch = typeof parsed.generated_at === 'string'
+    ? /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/.exec(parsed.generated_at)
+    : null;
+  if (!timestampMatch) throw new Error('invalid status timestamp');
+  const generatedAt = Date.parse(parsed.generated_at);
+  const canonicalTimestamp = `${timestampMatch[1]}.${(timestampMatch[2] || '').padEnd(3, '0')}Z`;
+  const now = Date.now();
+  if (!Number.isFinite(generatedAt)
+      || new Date(generatedAt).toISOString() !== canonicalTimestamp
+      || now - generatedAt > DEFAULT_MAX_STATUS_AGE_MS
+      || generatedAt - now > MAX_FUTURE_SKEW_MS) {
+    throw new Error('stale status');
+  }
   return Object.fromEntries(PUBLIC_STATUS_KEYS.map(key => [key, parsed[key]]));
 }
 
@@ -98,7 +127,13 @@ function createGuardianServer(options = {}) {
     }
 
     if (pathname === '/health') {
-      sendJson(req, res, 200, { status: 'ok' }, cors);
+      try {
+        const status = readPublicStatus(statusPath);
+        const healthy = status.status === 'ok';
+        sendJson(req, res, healthy ? 200 : 503, { status: healthy ? 'ok' : 'degraded' }, cors);
+      } catch {
+        sendJson(req, res, 503, { status: 'unavailable' }, cors);
+      }
       return;
     }
     if (pathname === '/api/v1/status') {

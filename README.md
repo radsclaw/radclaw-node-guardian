@@ -57,10 +57,11 @@ curl --fail http://127.0.0.1:8765/api/v1/status
 
 The production pattern is:
 
-1. `com.radclaw.node-guardian-probe` runs every five minutes and atomically refreshes a mode-0600 status file.
-2. `com.radclaw.node-guardian` keeps the localhost HTTP process alive.
+1. `com.radclaw.node-guardian-probe` runs every five minutes and atomically refreshes a mode-0600 status file. Collection failures replace the previous report with a redacted `degraded` report rather than leaving stale green data behind.
+2. `com.radclaw.node-guardian` keeps the localhost HTTP process alive. It rejects missing, malformed, future-dated, or reports older than ten minutes; `/health` returns `503` unless the current report is fresh and `ok`.
 3. Tailscale Funnel terminates public TLS and proxies only the dedicated port.
-4. No router port, CLN RPC socket, CLNRest endpoint, or wallet interface is public.
+4. `.github/workflows/public-watchdog.yml` checks the public health and status endpoints from an independent GitHub runner every five minutes, including a separate freshness/schema check.
+5. No router port, CLN RPC socket, CLNRest endpoint, or wallet interface is public.
 
 Example LaunchAgents are under `deploy/`. Copy them to `~/Library/LaunchAgents/`, replace `__PROJECT_ROOT__`, lint with `plutil -lint`, then bootstrap with `/bin/launchctl`.
 

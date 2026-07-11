@@ -15,7 +15,7 @@ async function fixture(options = {}) {
   fs.writeFileSync(statusPath, JSON.stringify({
     schema_version: 1,
     service: 'Radclaw Node Guardian',
-    generated_at: '2026-07-11T12:00:00Z',
+    generated_at: new Date().toISOString(),
     status: 'ok',
     network: 'bitcoin',
     version: 'v26.06.1',
@@ -27,7 +27,7 @@ async function fixture(options = {}) {
   const server = createGuardianServer({ publicDir, statusPath, rateLimit: options.rateLimit || 100 });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  return { root, server, base };
+  return { root, server, base, statusPath };
 }
 
 async function cleanup(ctx) {
@@ -59,6 +59,58 @@ test('status route strips fields outside the public allowlist', async () => {
       'block_height', 'generated_at', 'network', 'normal_channels', 'receive_ready',
       'schema_version', 'service', 'status', 'version',
     ]);
+  } finally { await cleanup(ctx); }
+});
+
+test('stale status makes both status and health unavailable', async () => {
+  const ctx = await fixture();
+  try {
+    const value = JSON.parse(fs.readFileSync(ctx.statusPath, 'utf8'));
+    value.generated_at = '2000-01-01T00:00:00Z';
+    fs.writeFileSync(ctx.statusPath, JSON.stringify(value));
+    assert.equal((await fetch(`${ctx.base}/api/v1/status`)).status, 503);
+    const health = await fetch(`${ctx.base}/health`);
+    assert.equal(health.status, 503);
+    assert.deepEqual(await health.json(), { status: 'unavailable' });
+  } finally { await cleanup(ctx); }
+});
+
+test('missing required status fields fail closed', async () => {
+  const ctx = await fixture();
+  try {
+    fs.writeFileSync(ctx.statusPath, JSON.stringify({
+      schema_version: 1,
+      service: 'Radclaw Node Guardian',
+      generated_at: new Date().toISOString(),
+      status: 'ok',
+    }));
+    assert.equal((await fetch(`${ctx.base}/api/v1/status`)).status, 503);
+  } finally { await cleanup(ctx); }
+});
+
+test('malformed timestamps fail closed instead of being coerced by Date.parse', async () => {
+  const ctx = await fixture();
+  try {
+    const value = JSON.parse(fs.readFileSync(ctx.statusPath, 'utf8'));
+    for (const generatedAt of [[new Date().toISOString()], new Date().toISOString().replace(/Z$/, ''), '2026-02-31T00:00:00Z']) {
+      value.generated_at = generatedAt;
+      fs.writeFileSync(ctx.statusPath, JSON.stringify(value));
+      assert.equal((await fetch(`${ctx.base}/api/v1/status`)).status, 503);
+      assert.equal((await fetch(`${ctx.base}/health`)).status, 503);
+    }
+  } finally { await cleanup(ctx); }
+});
+
+test('degraded status remains inspectable but health is unhealthy', async () => {
+  const ctx = await fixture();
+  try {
+    const value = JSON.parse(fs.readFileSync(ctx.statusPath, 'utf8'));
+    value.status = 'degraded';
+    fs.writeFileSync(ctx.statusPath, JSON.stringify(value));
+    assert.equal((await fetch(`${ctx.base}/api/v1/status`)).status, 200);
+    const health = await fetch(`${ctx.base}/health`);
+    assert.equal(health.status, 503);
+    assert.deepEqual(await health.json(), { status: 'degraded' });
   } finally { await cleanup(ctx); }
 });
 
