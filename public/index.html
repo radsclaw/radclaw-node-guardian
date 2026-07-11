@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Non-custodial Core Lightning monitoring and operations audits, paid in bitcoin over Lightning.">
+  <title>Radclaw Node Guardian</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="nav shell">
+    <a class="brand" href="/" aria-label="Radclaw Node Guardian home"><span class="mark">⚡</span> RADCLAW NODE GUARDIAN</a>
+    <nav aria-label="Primary"><a href="#services">Services</a><a href="#security">Security</a><a href="https://github.com/radsclaw/radclaw-node-guardian">GitHub</a></nav>
+  </header>
+
+  <main>
+    <section class="hero shell">
+      <div class="eyebrow">CORE LIGHTNING OPERATIONS</div>
+      <h1>Your node stays sovereign.<br><span>We help it stay healthy.</span></h1>
+      <p class="lede">Automated health monitoring and evidence-backed operational audits for independent Bitcoin and Lightning node operators. Read-only by design. Paid in sats.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/radsclaw/radclaw-node-guardian/issues/new?template=audit-request.yml">Request an audit</a>
+        <a class="button secondary" href="#services">View plans</a>
+      </div>
+      <div class="live-card" aria-live="polite">
+        <div><span id="status-dot" class="dot neutral"></span><strong>Reference monitor</strong></div>
+        <span id="live-status">Checking public status…</span>
+      </div>
+    </section>
+
+    <section class="proof shell" aria-label="Service principles">
+      <div><strong>READ-ONLY</strong><span>No spending authority</span></div>
+      <div><strong>NON-CUSTODIAL</strong><span>Your keys stay yours</span></div>
+      <div><strong>LIGHTNING-NATIVE</strong><span>Invoices settle in sats</span></div>
+      <div><strong>EVIDENCE-BACKED</strong><span>Checks, logs, and findings</span></div>
+    </section>
+
+    <section id="services" class="section shell">
+      <div class="section-head"><span>01 / SERVICES</span><h2>Small scope. Clear price.</h2></div>
+      <div class="pricing">
+        <article class="price-card featured">
+          <div class="tag">FOUNDING PLAN</div>
+          <h3>Guardian Monitoring</h3>
+          <p class="price">20,000 sats/month</p>
+          <ul>
+            <li>Automated daemon, sync, channel, and receive-readiness checks</li>
+            <li>Actionable outage and degradation alerts</li>
+            <li>Weekly operational summary</li>
+            <li>One monitored Core Lightning node</li>
+          </ul>
+          <a class="button primary" href="https://github.com/radsclaw/radclaw-node-guardian/issues/new?template=monitoring-plan.yml">Apply for monitoring</a>
+        </article>
+        <article class="price-card">
+          <div class="tag">ONE TIME</div>
+          <h3>Operations Audit</h3>
+          <p class="price">50,000 sats</p>
+          <ul>
+            <li>Configuration and exposure review</li>
+            <li>Liquidity and receive-path analysis</li>
+            <li>Backup, upgrade, and supervision risks</li>
+            <li>Prioritized remediation report</li>
+          </ul>
+          <a class="button secondary" href="https://github.com/radsclaw/radclaw-node-guardian/issues/new?template=audit-request.yml">Request an audit</a>
+        </article>
+      </div>
+      <p class="billing-note"><strong>No automatic debits.</strong> Scope is approved first, then each invoice is presented for explicit payment. Public payout route: <code>legendaryflame34@zeuspay.com</code>.</p>
+    </section>
+
+    <section class="section dark-band">
+      <div class="shell process">
+        <div class="section-head"><span>02 / PROCESS</span><h2>Useful without becoming trusted.</h2></div>
+        <ol>
+          <li><span>01</span><div><h3>Scope</h3><p>Share only high-level symptoms and deployment type in a public intake issue. No logs or credentials.</p></div></li>
+          <li><span>02</span><div><h3>Read-only probe</h3><p>Run an open-source local collector. Sensitive diagnostics stay local unless a private transfer is explicitly arranged.</p></div></li>
+          <li><span>03</span><div><h3>Evidence</h3><p>Receive concrete findings, severity, commands, and verification—not generic AI prose.</p></div></li>
+          <li><span>04</span><div><h3>Approval</h3><p>You decide whether to apply any remediation. Fund-moving and channel actions are never automatic.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="security" class="section shell security-grid">
+      <div class="section-head"><span>03 / SECURITY</span><h2>Things we will never ask for.</h2></div>
+      <div class="never-list">
+        <span>Seed phrase</span><span>HSM secret</span><span>Private key</span><span>Admin rune</span><span>Macaroon</span><span>NWC connection string</span><span>Wallet password</span><span>Unredacted payment data</span>
+      </div>
+      <p>Radclaw Node Guardian is non-custodial and read-only. It does not promise uptime, routing profit, payment delivery, or recovery from data loss. The service is operational support—not financial advice, insurance, or custody.</p>
+    </section>
+
+    <section class="section shell disclosure">
+      <div><span>04 / DELIVERY</span><h2>AI-assisted, operator-accountable.</h2></div>
+      <p>Delivery is AI-assisted and backed by reproducible commands, tests, and machine-readable evidence. High-impact changes remain customer-approved. Findings are reviewed for security and operational risk before delivery.</p>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>© 2026 Radclaw Node Guardian</span>
+    <div><a href="https://github.com/radsclaw/radclaw-node-guardian/blob/main/PRIVACY.md">Privacy</a><a href="https://github.com/radsclaw/radclaw-node-guardian/blob/main/TERMS.md">Terms</a><a href="https://github.com/radsclaw/radclaw-node-guardian">Source</a></div>
+  </footer>
+</body>
+</html>

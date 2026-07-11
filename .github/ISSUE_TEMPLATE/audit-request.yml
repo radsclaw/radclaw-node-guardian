@@ -1,0 +1,40 @@
+name: Operations audit request
+description: Request a scoped, read-only Core Lightning operations audit
+title: "Audit request: "
+labels: ["audit-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Public intake only. Never paste a seed phrase, HSM secret, private key, rune, macaroon, NWC connection string, wallet password, BOLT11 invoice, payment hash, node ID, peer ID, IP address, or unredacted log here.** Private evidence transfer is arranged only after scope approval.
+  - type: dropdown
+    id: implementation
+    attributes:
+      label: Lightning implementation
+      options: [Core Lightning, LND, Eclair, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      options: [macOS, Linux, Docker, Umbrel/Start9, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: High-level symptoms or goals
+      description: Describe behavior without identifiers, balances, addresses, credentials, invoices, or raw logs.
+      placeholder: "Example: intermittent daemon restarts after upgrades; looking for supervision and backup review."
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I have not included secrets, credentials, payment data, node/peer identifiers, network addresses, or unredacted logs.
+          required: true
+        - label: I understand the 50,000 sats price is quoted only after scope acceptance and no automatic debit occurs.
+          required: true

@@ -1,0 +1,40 @@
+name: Guardian monitoring application
+description: Apply for the 20,000 sats/month founding monitoring plan
+title: "Monitoring application: "
+labels: ["monitoring-application"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Public intake only. Never paste a seed phrase, HSM secret, private key, rune, macaroon, NWC connection string, wallet password, BOLT11 invoice, payment hash, node ID, peer ID, IP address, or unredacted log here.** Monitoring uses a read-only local probe; spending credentials are neither required nor accepted.
+  - type: dropdown
+    id: implementation
+    attributes:
+      label: Lightning implementation
+      options: [Core Lightning, LND, Eclair, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: alerting
+    attributes:
+      label: Preferred alert channel
+      options: [Email, Discord, Telegram, Nostr DM, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: outcomes
+    attributes:
+      label: What should Guardian watch?
+      description: High-level outcomes only—no network details, credentials, addresses, balances, invoices, or raw logs.
+      placeholder: "Example: daemon uptime, sync lag, channel state, receive readiness, version drift."
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and billing confirmation
+      options:
+        - label: I have not included secrets, credentials, payment data, node/peer identifiers, network addresses, or unredacted logs.
+          required: true
+        - label: I understand monitoring is non-custodial, does not guarantee uptime or profitability, and costs 20,000 sats/month with explicit monthly invoices and no automatic debits.
+          required: true
