@@ -86,4 +86,6 @@ test('external watchdog checks health and independently validates fresh status',
   assert.match(workflow, /isinstance.*receive_ready/);
   assert.match(workflow, /generated_at/);
   assert.match(workflow, /status.*ok/);
+  assert.match(workflow, /for attempt in range\(3\)/);
+  assert.match(workflow, /time\.sleep\(45\)/);
 });
